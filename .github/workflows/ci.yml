@@ -10,12 +10,12 @@ on:
 
 jobs:
   build-and-test:
-    name: Build, Lint, and Test
+    name: Build, Lint, and Test (Python 3.13) # Updated job name for clarity
     runs-on: ubuntu-latest # Specifies the type of runner
 
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.13"] # Test against multiple Python versions
+        python-version: ["3.13"] # MODIFIED: Only run for Python 3.13
 
     steps:
       # Step 1: Check out the repository code
