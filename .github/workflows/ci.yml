@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.13"] # Test against multiple Python versions
+        python-version: ["3.10", "3.11", "3.13"] # Test against multiple Python versions, including 3.13
 
     steps:
       # Step 1: Check out the repository code
@@ -30,33 +30,38 @@ jobs:
           cache: 'pip' # Cache pip dependencies
 
       # Step 3: Install dependencies from requirements.txt
-      # It's best practice to include flake8 and black in requirements.txt
+      # For this to be fully effective, ensure flake8 and black are in your requirements.txt
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          # If flake8/black are not in requirements.txt, they will be installed in their specific steps below.
+          # If you have a requirements-dev.txt for dev tools, install it too:
+          # if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 
       # Step 4: Lint with Flake8
       - name: Lint with Flake8
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install flake8      # THIS LINE MUST BE ACTIVE
+          set -e # Exit immediately if a command exits with a non-zero status.
+          echo "Installing Flake8..."
+          python -m pip install flake8
           echo "Running Flake8..."
           flake8 . --count --max-complexity=12 --max-line-length=119 --show-source --statistics
 
       # Step 5: Format with Black (Check Mode)
       - name: Check formatting with Black
         run: |
-          python -m pip install black      # Ensure black is installed
+          set -e # Exit immediately if a command exits with a non-zero status.
+          echo "Installing Black..."
+          python -m pip install black
           echo "Checking formatting with Black..."
           black --check .
-        # This step will fail if Black finds files that need reformatting.
 
       # Step 6: Test with Pytest
       # Pytest and pytest-cov should be in requirements.txt
       - name: Test with Pytest
         run: |
+          set -e # Exit immediately if a command exits with a non-zero status.
+          echo "Running Pytest..."
           pytest test/ --cov=app --cov-report=xml --cov-report=term-missing
           # Adjust 'test/' to your actual test directory name if different (e.g., 'tests/')
 
@@ -65,7 +70,7 @@ jobs:
         if: success() # Only run if previous steps were successful
         run: |
           docker build . --file Dockerfile --tag your-app-name:${{ github.sha }}
-          # Replace 'your-app-name' with a suitable name for your application image (e.g., my-todo-app)
+          # IMPORTANT: Replace 'your-app-name' with your actual image name.
 
   # Optional Job: Push Docker image to GitHub Container Registry (GHCR)
   push-to-ghcr:
@@ -111,7 +116,11 @@ jobs:
   #   needs: push-to-ghcr
   #   runs-on: ubuntu-latest
   #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  #   permissions:
+  #     contents: 'read'
+  #     id-token: 'write' # Example for Google Cloud OIDC
   #   steps:
   #     - name: Deploy to Cloud Provider
   #       run: |
   #         echo "Deploying image ghcr.io/${{ github.repository_owner }}/your-app-name:${{ github.sha }} to production..."
+  #         # Add your actual deployment commands here.
