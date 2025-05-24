@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ["3.10", "3.11"] # Test against multiple Python versions
+        python-version: ["3.10", "3.11", "3.13"] # Added Python 3.13
 
     steps:
       # Step 1: Check out the repository code
@@ -38,29 +38,26 @@ jobs:
           # pip install -r requirements-dev.txt
 
       # Step 4: Lint with Flake8
-      # Ensure Flake8 is in your requirements.txt or it will be installed here
+      # Flake8 should now be installed via requirements.txt
       - name: Lint with Flake8
         run: |
-          python -m pip install flake8 # Explicitly install flake8
-          echo "Running Flake8 for general style, complexity, and line length..."
+          # python -m pip install flake8 # This line can be commented out if flake8 is in requirements.txt
+          echo "Running Flake8..."
           # This command will fail the job if Flake8 finds issues.
-          # Adjust max-complexity and max-line-length to your project's standards.
-          flake8 . --count --max-complexity=12 --max-line-length=119 --statistics --show-source
+          flake8 . --count --max-complexity=12 --max-line-length=119 --show-source --statistics
 
       # Step 5: Format with Black (Check Mode)
-      # Ensure Black is in your requirements.txt or it will be installed here
+      # Black should now be installed via requirements.txt
       - name: Check formatting with Black
         run: |
-          python -m pip install black # Explicitly install black
+          # python -m pip install black # This line can be commented out if black is in requirements.txt
           black --check .
         # This step will fail if Black finds files that need reformatting.
 
       # Step 6: Test with Pytest
-      # Ensure pytest and pytest-cov are in your requirements.txt
+      # Pytest and pytest-cov should be in requirements.txt
       - name: Test with Pytest
         run: |
-          # python -m pip install pytest pytest-cov # Uncomment if not in requirements.txt
-          # Assumes your tests are in a 'test' directory and app code in 'app'
           pytest test/ --cov=app --cov-report=xml --cov-report=term-missing
           # Adjust 'test/' to your actual test directory name if different (e.g., 'tests/')
 
@@ -72,66 +69,45 @@ jobs:
           # Replace 'your-app-name' with a suitable name for your application image (e.g., my-todo-app)
 
   # Optional Job: Push Docker image to GitHub Container Registry (GHCR)
-  # This job runs only on pushes to the 'main' branch after build-and-test succeeds.
   push-to-ghcr:
     name: Push Docker Image to GHCR
-    needs: build-and-test # Depends on the build-and-test job succeeding
+    needs: build-and-test
     runs-on: ubuntu-latest
-    # Only run on a push to the main branch
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
     permissions:
       contents: read
-      packages: write # Required to push to GHCR
+      packages: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }} # Your GitHub username or organization
-          password: ${{ secrets.GITHUB_TOKEN }}   # GITHUB_TOKEN is automatically available
-
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push Docker image to GHCR
         uses: docker/build-push-action@v5
         with:
-          context: . # Build context is the root of the repository
-          file: ./Dockerfile # Path to your Dockerfile
-          push: true # Actually push the image
+          context: .
+          file: ./Dockerfile
+          push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/your-app-name:latest
             ghcr.io/${{ github.repository_owner }}/your-app-name:${{ github.sha }}
             # IMPORTANT: Replace 'your-app-name' with your actual image name.
             # e.g., ghcr.io/ariandokoohaki/todo-app:latest
 
-  # Placeholder for Deployment Job (e.g., to Google Cloud Run, AWS, Heroku, etc.)
+  # Placeholder for Deployment Job
   # deploy-to-production:
   #   name: Deploy to Production
-  #   needs: push-to-ghcr # Depends on the image being successfully pushed
+  #   needs: push-to-ghcr
   #   runs-on: ubuntu-latest
   #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-  #
-  #   # Add permissions for your chosen cloud provider if using OIDC
-  #   # permissions:
-  #   #   contents: 'read'
-  #   #   id-token: 'write' # Example for Google Cloud
-  #
   #   steps:
   #     - name: Deploy to Cloud Provider
   #       run: |
   #         echo "Deploying image ghcr.io/${{ github.repository_owner }}/your-app-name:${{ github.sha }} to production..."
-  #         # Add your actual deployment commands here.
-  #         # This would involve authenticating to your cloud provider and using their CLI/SDK.
-  #         # Example for Google Cloud Run (requires gcloud CLI setup and auth):
-  #         # gcloud run deploy your-cloud-run-service-name \
-  #         #   --image ghcr.io/${{ github.repository_owner }}/your-app-name:${{ github.sha }} \
-  #         #   --region your-gcp-region \
-  #         #   --platform managed \
-  #         #   --allow-unauthenticated \ # Or configure IAM for authentication
-  #         #   --project your-gcp-project-id
