@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.13"] # Test against multiple Python versions, including 3.13
+        python-version: ["3.10", "3.11", "3.13"] # Test against multiple Python versions
 
     steps:
       # Step 1: Check out the repository code
@@ -30,20 +30,19 @@ jobs:
           cache: 'pip' # Cache pip dependencies
 
       # Step 3: Install dependencies from requirements.txt
-      # For this to be fully effective, ensure flake8 and black are in your requirements.txt
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          # If you have a requirements-dev.txt for dev tools, install it too:
-          # if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          # If flake8 & black are in requirements.txt, they are installed here.
+          # Otherwise, they are installed in their specific steps below.
 
       # Step 4: Lint with Flake8
       - name: Lint with Flake8
         run: |
-          python -m pip install flake8
           set -e # Exit immediately if a command exits with a non-zero status.
-          echo "Installing Flake8..."
+          echo "Ensuring Flake8 is installed..."
+          python -m pip install flake8
           echo "Running Flake8..."
           flake8 . --count --max-complexity=12 --max-line-length=119 --show-source --statistics
 
@@ -51,13 +50,12 @@ jobs:
       - name: Check formatting with Black
         run: |
           set -e # Exit immediately if a command exits with a non-zero status.
-          echo "Installing Black..."
+          echo "Ensuring Black is installed..."
           python -m pip install black
           echo "Checking formatting with Black..."
           black --check .
 
       # Step 6: Test with Pytest
-      # Pytest and pytest-cov should be in requirements.txt
       - name: Test with Pytest
         run: |
           set -e # Exit immediately if a command exits with a non-zero status.
@@ -77,33 +75,27 @@ jobs:
     name: Push Docker Image to GHCR
     needs: build-and-test # Depends on the build-and-test job succeeding
     runs-on: ubuntu-latest
-    # Only run on a push to the main branch
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
     permissions:
       contents: read
-      packages: write # Required to push to GHCR
-
+      packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }} # Your GitHub username or organization
-          password: ${{ secrets.GITHUB_TOKEN }}   # GITHUB_TOKEN is automatically available
-
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push Docker image to GHCR
         uses: docker/build-push-action@v5
         with:
-          context: . # Build context is the root of the repository
-          file: ./Dockerfile # Path to your Dockerfile
-          push: true # Actually push the image
+          context: .
+          file: ./Dockerfile
+          push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/your-app-name:latest
             ghcr.io/${{ github.repository_owner }}/your-app-name:${{ github.sha }}
@@ -113,14 +105,4 @@ jobs:
   # Placeholder for Deployment Job
   # deploy-to-production:
   #   name: Deploy to Production
-  #   needs: push-to-ghcr
-  #   runs-on: ubuntu-latest
-  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-  #   permissions:
-  #     contents: 'read'
-  #     id-token: 'write' # Example for Google Cloud OIDC
-  #   steps:
-  #     - name: Deploy to Cloud Provider
-  #       run: |
-  #         echo "Deploying image ghcr.io/${{ github.repository_owner }}/your-app-name:${{ github.sha }} to production..."
-  #         # Add your actual deployment commands here.
+  #   # ... (rest of deployment job)
