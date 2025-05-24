@@ -37,23 +37,21 @@ jobs:
           # If you have a separate dev requirements for linters/pytest:
           # pip install -r requirements-dev.txt
 
-      # Step 4: Lint with Flake8 (Optional)
-      # Ensure Flake8 is in your requirements.txt or installed separately
+      # Step 4: Lint with Flake8
+      # Ensure Flake8 is in your requirements.txt or it will be installed here
       - name: Lint with Flake8
         run: |
-          # pip install flake8 # Uncomment if not in requirements.txt
-          # Stop the build if there are Python syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # Exit-zero treats all errors as warnings. For CI, you might want to fail on errors.
-          # To fail on errors, remove --exit-zero or use a stricter configuration.
-          flake8 . --count --max-complexity=10 --max-line-length=119 --statistics
-        # To make the build fail if Flake8 finds issues, ensure it exits with a non-zero code for errors.
+          python -m pip install flake8 # Explicitly install flake8
+          echo "Running Flake8 for general style, complexity, and line length..."
+          # This command will fail the job if Flake8 finds issues.
+          # Adjust max-complexity and max-line-length to your project's standards.
+          flake8 . --count --max-complexity=12 --max-line-length=119 --statistics --show-source
 
-      # Step 5: Format with Black (Optional Check)
-      # Ensure Black is in your requirements.txt or installed separately
+      # Step 5: Format with Black (Check Mode)
+      # Ensure Black is in your requirements.txt or it will be installed here
       - name: Check formatting with Black
         run: |
-          # pip install black # Uncomment if not in requirements.txt
+          python -m pip install black # Explicitly install black
           black --check .
         # This step will fail if Black finds files that need reformatting.
 
@@ -61,17 +59,17 @@ jobs:
       # Ensure pytest and pytest-cov are in your requirements.txt
       - name: Test with Pytest
         run: |
-          # pip install pytest pytest-cov # Uncomment if not in requirements.txt
-          # Assumes your tests are in a 'test' or 'tests' directory and app code in 'app'
+          # python -m pip install pytest pytest-cov # Uncomment if not in requirements.txt
+          # Assumes your tests are in a 'test' directory and app code in 'app'
           pytest test/ --cov=app --cov-report=xml --cov-report=term-missing
           # Adjust 'test/' to your actual test directory name if different (e.g., 'tests/')
 
-      # Step 7: Build Docker image (verifies Dockerfile)
+      # Step 7: Build Docker image (verifies Dockerfile is working)
       - name: Build Docker image
         if: success() # Only run if previous steps were successful
         run: |
           docker build . --file Dockerfile --tag your-app-name:${{ github.sha }}
-          # Replace 'your-app-name' with a suitable name for your application image
+          # Replace 'your-app-name' with a suitable name for your application image (e.g., my-todo-app)
 
   # Optional Job: Push Docker image to GitHub Container Registry (GHCR)
   # This job runs only on pushes to the 'main' branch after build-and-test succeeds.
@@ -91,14 +89,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        # Allows building multi-platform images, though not strictly necessary for a single platform push.
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }} # Or your GitHub username if deploying to personal GHCR
+          username: ${{ github.repository_owner }} # Your GitHub username or organization
           password: ${{ secrets.GITHUB_TOKEN }}   # GITHUB_TOKEN is automatically available
 
       - name: Build and push Docker image to GHCR
@@ -110,21 +107,31 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/your-app-name:latest
             ghcr.io/${{ github.repository_owner }}/your-app-name:${{ github.sha }}
-            # Replace 'your-app-name' with your actual image name.
-            # It's common to use lowercase and hyphens for image names.
-            # Example: ghcr.io/your-username/my-fastapi-app:latest
+            # IMPORTANT: Replace 'your-app-name' with your actual image name.
+            # e.g., ghcr.io/ariandokoohaki/todo-app:latest
 
-  # Placeholder for Deployment Job (e.g., to Google Cloud Run, AWS, etc.)
+  # Placeholder for Deployment Job (e.g., to Google Cloud Run, AWS, Heroku, etc.)
   # deploy-to-production:
   #   name: Deploy to Production
   #   needs: push-to-ghcr # Depends on the image being successfully pushed
   #   runs-on: ubuntu-latest
   #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
   #
+  #   # Add permissions for your chosen cloud provider if using OIDC
+  #   # permissions:
+  #   #   contents: 'read'
+  #   #   id-token: 'write' # Example for Google Cloud
+  #
   #   steps:
-  #     - name: Deploy to (e.g., Google Cloud Run)
+  #     - name: Deploy to Cloud Provider
   #       run: |
   #         echo "Deploying image ghcr.io/${{ github.repository_owner }}/your-app-name:${{ github.sha }} to production..."
-  #         # Add your actual deployment commands here
-  #         # This would involve authenticating to your cloud provider and using their CLI/SDK
-  #         # For example, gcloud run deploy ...
+  #         # Add your actual deployment commands here.
+  #         # This would involve authenticating to your cloud provider and using their CLI/SDK.
+  #         # Example for Google Cloud Run (requires gcloud CLI setup and auth):
+  #         # gcloud run deploy your-cloud-run-service-name \
+  #         #   --image ghcr.io/${{ github.repository_owner }}/your-app-name:${{ github.sha }} \
+  #         #   --region your-gcp-region \
+  #         #   --platform managed \
+  #         #   --allow-unauthenticated \ # Or configure IAM for authentication
+  #         #   --project your-gcp-project-id
