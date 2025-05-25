@@ -1,0 +1,14 @@
+[flake8]
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    .venv,
+    env,
+    .env,
+    build,
+    dist
+max-line-length = 88
+# You can add other configurations here too.
+# For example, if you want to ignore a specific error code project-wide:
+# ignore = E501, W503
